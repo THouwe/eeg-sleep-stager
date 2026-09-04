@@ -54,6 +54,14 @@ UNSCORED = -1
 # once instead of on every request. Keyed by (model, resolved models_dir).
 _MODEL_CACHE: dict = {}
 
+# CNN inference batch size for the ONNX serve path. A whole night is ~1000+
+# epochs; running them through the Conv1D stack in one shot allocates huge
+# intermediate activation tensors (a (N, 3000, 32) buffer alone is hundreds of
+# MB), which OOMs a free 512 MB host. Staging in mini-batches keeps peak RAM
+# flat and is numerically identical (softmax is per-epoch). Measured peak on the
+# bundled night: single-shot ~990 MB vs ~335 MB at batch 128.
+_CNN_ONNX_BATCH = 128
+
 
 def _load_cnn(models_dir: Path):
     # [onnx] retained (unused on the serve path): the TF/Keras loader is kept
@@ -290,7 +298,13 @@ def predict_stages(
         in_name = sess.get_inputs()[0].name
         out_name = sess.get_outputs()[0].name
         x = z[..., np.newaxis].astype("float32")
-        proba = np.asarray(sess.run([out_name], {in_name: x})[0], dtype=float)
+        # Mini-batch to keep peak RAM flat on a small host (see _CNN_ONNX_BATCH).
+        # Concatenating per-batch softmax is identical to one big run.
+        parts = [
+            np.asarray(sess.run([out_name], {in_name: x[i : i + _CNN_ONNX_BATCH]})[0])
+            for i in range(0, x.shape[0], _CNN_ONNX_BATCH)
+        ]
+        proba = np.concatenate(parts, axis=0).astype(float)
         return np.argmax(proba, axis=1).astype(int), proba
 
     if model == MODEL_BASELINE:
