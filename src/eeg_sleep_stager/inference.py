@@ -56,11 +56,33 @@ _MODEL_CACHE: dict = {}
 
 
 def _load_cnn(models_dir: Path):
+    # [onnx] retained (unused on the serve path): the TF/Keras loader is kept
+    # recoverable per the slim-down rules. Serving now uses _load_cnn_onnx below.
     key = ("cnn", str(models_dir.resolve()))
     if key not in _MODEL_CACHE:
         import tensorflow as tf
 
         _MODEL_CACHE[key] = tf.keras.models.load_model(models_dir / "cnn.keras")
+    return _MODEL_CACHE[key]
+
+
+def _load_cnn_onnx(models_dir: Path):
+    """Return a cached onnxruntime session for ``models/cnn.onnx``.
+
+    Mirrors :func:`_load_cnn`/:func:`_load_baseline`: one load per
+    ``(model, models_dir)`` for the life of the process. ``onnxruntime`` is
+    imported lazily so ``import eeg_sleep_stager.inference`` stays cheap and
+    TF-free. The ONNX graph is exported by ``scripts/keras_to_onnx.py`` with a
+    dynamic batch axis; read its input/output names from the session at call
+    time (don't hard-code them).
+    """
+    key = ("cnn_onnx", str(models_dir.resolve()))
+    if key not in _MODEL_CACHE:
+        import onnxruntime as ort
+
+        _MODEL_CACHE[key] = ort.InferenceSession(
+            str(models_dir / "cnn.onnx"), providers=["CPUExecutionProvider"]
+        )
     return _MODEL_CACHE[key]
 
 
@@ -258,8 +280,17 @@ def predict_stages(
     models_dir = Path(models_dir)
 
     if model == MODEL_CNN:
-        net = _load_cnn(models_dir)
-        proba = np.asarray(net.predict(z[..., np.newaxis], verbose=0), dtype=float)
+        # [onnx] disabled: serve path no longer imports TensorFlow; the Keras
+        # forward pass is replaced by an onnxruntime session on cnn.onnx (same
+        # math, a fraction of the size/RAM). Un-comment these two lines and drop
+        # the ONNX block below to restore the TF path (see cnn-to-onnx.md).
+        # net = _load_cnn(models_dir)
+        # proba = np.asarray(net.predict(z[..., np.newaxis], verbose=0), dtype=float)
+        sess = _load_cnn_onnx(models_dir)
+        in_name = sess.get_inputs()[0].name
+        out_name = sess.get_outputs()[0].name
+        x = z[..., np.newaxis].astype("float32")
+        proba = np.asarray(sess.run([out_name], {in_name: x})[0], dtype=float)
         return np.argmax(proba, axis=1).astype(int), proba
 
     if model == MODEL_BASELINE:
