@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eeg-sleep-stager"
+version = "0.1.0"
+description = "Distributed EEG feature extraction with PySpark feeding a 1-D CNN sleep stager, with subject-wise validation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Thomas Houweling", email = "thomas.houweling@gmail.com" }]
+keywords = ["eeg", "sleep-staging", "pyspark", "tensorflow", "physionet"]
+
+dependencies = [
+    "pyspark==3.5.1",
+    "mne==1.6.1",
+    "scipy==1.11.4",
+    "numpy==1.26.4",
+    "pandas==2.1.4",
+    "pyarrow==14.0.2",
+    "tensorflow==2.15.0",
+    "scikit-learn==1.4.2",
+    # typer/click are CLI-only and left as ranges (not exact pins) so the web-demo
+    # extra can coexist: gradio needs typer>=0.12, and modern Typer (>=0.12) fixed
+    # the eager --version misfire that forced the old typer==0.9.0 / click<8.2 pin.
+    # Verified: the CLI (incl. --version) works on typer 0.27 / click 8.5.
+    "typer>=0.12.0",
+    "click>=8.1.7",
+    "pydantic==2.6.4",
+    "pydantic-settings==2.2.1",
+    "pyyaml==6.0.1",
+    "matplotlib==3.8.4",
+    "requests==2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.1.1",
+    "pytest-cov==5.0.0",
+]
+# Web demo (Gradio). Serve-time only; does NOT pull pyspark. See app.py and
+# web-demo-dev-roadmap.md. The transitive pins matter: gradio 4.44.1 breaks with
+# the newest fastapi/starlette/huggingface_hub/pydantic (ASGI + schema-gen errors),
+# so this set is pinned to the tested-compatible versions that also keep
+# pydantic at the pipeline's 2.6.4. NB: gradio pulls typer/click newer than the
+# core pins; the CLI and tests pass on those, but the resolver will note it.
+app = [
+    "gradio==4.44.1",
+    "gradio-client==1.3.0",
+    "fastapi==0.112.4",
+    "starlette==0.38.6",
+    "huggingface_hub==0.25.2",
+]
+
+[project.scripts]
+eeg-sleep-stager = "eeg_sleep_stager.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/THouwe/eeg-sleep-stager"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

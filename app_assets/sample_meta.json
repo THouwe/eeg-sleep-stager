@@ -1,0 +1,11 @@
+{
+  "subject_id": "SC08",
+  "night": 1,
+  "n_epochs": 1134,
+  "epoch_samples": 3000,
+  "sample_rate": 100,
+  "epoch_sec": 30,
+  "channel": "EEG Fpz-Cz",
+  "split": "test",
+  "note": "Held-out test subject (unseen in training). Signal is per-recording z-scored; stages are expert AASM labels. Wake padding trimmed by the ETL."
+}

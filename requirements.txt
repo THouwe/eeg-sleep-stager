@@ -1,0 +1,33 @@
+# Serve-time dependencies for the Gradio web demo (Hugging Face Spaces install list).
+#
+# This is the model-SERVING environment. Two deliberate choices:
+#   * NO pyspark -- Spark only builds the epoch store offline; inference
+#     (app.py / inference.py) is plain MNE/NumPy/TensorFlow and never touches a
+#     cluster. Importing eeg_sleep_stager.inference pulls no Spark.
+#   * NO "." (the local package) -- app.py puts ./src on sys.path itself, so the
+#     package imports from a bare checkout without a pip install that would drag
+#     the pipeline's pyspark/typer pins back in.
+#
+# The gradio stack is pinned to a mutually compatible set: gradio 4.44.1 breaks
+# against the newest fastapi/starlette/huggingface_hub/pydantic (ASGI + schema
+# errors), so those are held at the tested versions. pydantic stays at the
+# pipeline's 2.6.4.
+
+# --- model + signal processing (serve path) ---
+mne==1.6.1
+scipy==1.11.4
+numpy==1.26.4
+pandas==2.1.4
+pyarrow==14.0.2
+tensorflow==2.15.0
+scikit-learn==1.4.2
+matplotlib==3.8.4
+pyyaml==6.0.1
+pydantic==2.6.4
+
+# --- web UI (mutually compatible gradio stack) ---
+gradio==4.44.1
+gradio-client==1.3.0
+fastapi==0.112.4
+starlette==0.38.6
+huggingface_hub==0.25.2

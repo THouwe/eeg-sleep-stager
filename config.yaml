@@ -1,0 +1,52 @@
+# eeg-sleep-stager run configuration.
+# Loaded and validated by src/eeg_sleep_stager/config.py (Pydantic).
+# Paths are resolved relative to the repo root unless absolute.
+
+paths:
+  data_dir: ./data
+  raw_dir: ./data/raw
+  processed_dir: ./data/processed
+  models_dir: ./models
+  reports_dir: ./reports
+
+dataset:
+  name: sleep-cassette          # PhysioNet Sleep-EDF Expanded subset
+  source_url: https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/
+  channel: "EEG Fpz-Cz"         # single EEG channel used for staging
+  sample_rate: 100              # Hz (Sleep-EDF EEG is 100 Hz)
+  epoch_sec: 30                 # AASM scoring epoch length
+  # epoch_sec * sample_rate = 3000 samples per epoch
+  wake_pad_min: 30              # minutes of Wake kept around the sleep period
+
+# Spectral band edges in Hz [low, high]. Used by features.band_powers().
+bands:
+  delta: [0.5, 4.0]
+  theta: [4.0, 8.0]
+  alpha: [8.0, 13.0]
+  sigma: [11.0, 16.0]           # sleep spindles
+  beta:  [16.0, 30.0]
+
+split:
+  seed: 42
+  val_frac: 0.15
+  test_frac: 0.15
+
+spark:
+  master: "local[*]"
+  app_name: eeg-sleep-stager-etl
+  shuffle_partitions: 16
+
+# Deep 1-D CNN on the raw epoch signal.
+cnn:
+  batch_size: 128
+  learning_rate: 0.001
+  epochs: 30
+  early_stopping_patience: 6
+  class_weights: auto           # "auto" -> inverse-frequency weights, or null
+
+# Classical baseline (sklearn GradientBoosting on engineered features).
+baseline:
+  n_estimators: 300
+  learning_rate: 0.05
+  max_depth: 3
+  random_state: 42

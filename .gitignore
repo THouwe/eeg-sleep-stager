@@ -1,0 +1,29 @@
+# Data & artifacts (large / regenerable)
+data/
+models/
+reports/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv*/
+venv/
+.env
+
+# Tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Spark / OS
+spark-warehouse/
+metastore_db/
+derby.log
+.DS_Store
+Thumbs.db
