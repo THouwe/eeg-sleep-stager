@@ -1,8 +1,12 @@
-# Serve-time dependencies for the Gradio web demo (Hugging Face Spaces install list).
+# Serve-time dependencies for the Gradio web demo (Docker / Koyeb install list).
 #
-# This is the model-SERVING environment. Two deliberate choices:
+# This is the model-SERVING environment. Three deliberate choices:
+#   * NO tensorflow -- the CNN is served from models/cnn.onnx via onnxruntime
+#     (a fraction of TF's size/RAM), so the demo fits a free 512 MB host. The
+#     TF/Keras path stays in the code (commented / retained) but is never
+#     imported on the serve path. See cnn-to-onnx.md.
 #   * NO pyspark -- Spark only builds the epoch store offline; inference
-#     (app.py / inference.py) is plain MNE/NumPy/TensorFlow and never touches a
+#     (app.py / inference.py) is plain MNE/NumPy/onnxruntime and never touches a
 #     cluster. Importing eeg_sleep_stager.inference pulls no Spark.
 #   * NO "." (the local package) -- app.py puts ./src on sys.path itself, so the
 #     package imports from a bare checkout without a pip install that would drag
@@ -19,7 +23,7 @@ scipy==1.11.4
 numpy==1.26.4
 pandas==2.1.4
 pyarrow==14.0.2
-tensorflow==2.15.0
+onnxruntime==1.17.3
 scikit-learn==1.4.2
 matplotlib==3.8.4
 pyyaml==6.0.1
