@@ -236,6 +236,15 @@ bit-for-bit identical to training, not merely similar.
 Recordings with a different channel or sample rate raise a clear error rather than
 being silently resampled and guessed at.
 
+**Serve backend (ONNX).** Training writes `models/cnn.keras` on TensorFlow, but the
+hosted demo serves TF-free: `cnn.keras` is exported to `models/cnn.onnx`
+(**opset 13**, dynamic batch axis) by [`scripts/keras_to_onnx.py`](scripts/keras_to_onnx.py)
+and run with **onnxruntime 1.17.3**. ONNX replaces only the matrix multiply, not the
+preprocessing above — a parity test (`test_cnn_onnx_matches_keras`) pins the two
+backends to identical argmax and `atol=1e-4` softmax, so the slim-down is provably
+result-preserving. Inference is mini-batched (128 epochs) to keep peak RAM under the
+free host's 512 MB. See [cnn-to-onnx.md](cnn-to-onnx.md).
+
 ---
 
 ## 8. Limitations and what would move the numbers

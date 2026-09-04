@@ -1,4 +1,4 @@
-"""Gradio web demo for the EEG sleep stager (Hugging Face Spaces entrypoint).
+"""Gradio web demo for the EEG sleep stager (container entrypoint; hosted on Render).
 
 Upload a full-night PSG EDF -- or click "Load sample night" -- and get the trained
 1-D CNN's sleep staging back as a hypnogram, a stage summary, and a downloadable
@@ -7,7 +7,8 @@ overlay and honest metrics. All model logic lives in
 :mod:`eeg_sleep_stager.inference`; this file is only UI wiring, kept deliberately
 thin (and untested) so the tested code carries the weight.
 
-No Spark runs here -- inference is plain MNE/NumPy/TensorFlow. Run locally with::
+No Spark runs here -- inference is plain MNE/NumPy/onnxruntime (the CNN is served
+from ``models/cnn.onnx``, TF-free; see cnn-to-onnx.md). Run locally with::
 
     pip install -e ".[app]"
     python app.py

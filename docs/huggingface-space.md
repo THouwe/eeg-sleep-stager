@@ -1,6 +1,14 @@
 # Deploying the web demo to Hugging Face Spaces
 
-The Gradio demo (`app.py`) runs unchanged on a free **Gradio Space**. This is the
+> **⚠️ HF no longer offers a free home for this demo.** Hugging Face now gates
+> free `cpu-basic` Gradio Spaces behind **PRO**, and its free ZeroGPU tier is
+> **PyTorch-only** — so this (originally TensorFlow) Gradio app has no free HF
+> tier. The **free, no-card route is [Render](https://eeg-sleep-stager.onrender.com/)**
+> via the repo's [`Dockerfile`](../Dockerfile) running the TF-free ONNX serve path
+> (see [cnn-to-onnx.md](../cnn-to-onnx.md)). This document is kept for the HF route
+> if you have PRO or want a ZeroGPU/PyTorch port later.
+
+The Gradio demo (`app.py`) runs unchanged on a **Gradio Space**. This is the
 model-serving path only — no Spark, no dataset, no training. Everything the Space
 needs is already in the repo except that two directories are `.gitignore`d
 (`models/`, and `data/`); you push the two model files explicitly and leave the

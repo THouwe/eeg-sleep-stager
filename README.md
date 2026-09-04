@@ -9,7 +9,7 @@ so the reported numbers are honest.
 > - deep learning on raw physiological signal, evaluated without cross-subject leakage through subject-wise splitting: no epoch from a subject in the test set ever appears in training (epoch-level random splits leak physiology across the split and inflate accuracy by 10+ points)
 > - the honest numbers are reported (macro-F1 and Cohen's κ, the standard sleep-staging metric)
 
-**Live demo (Hugging Face Spaces):** _not yet deployed_ <!-- https://huggingface.co/spaces/<user>/<space> -->
+**Live demo (Render):** **https://eeg-sleep-stager.onrender.com/** <!-- free tier: sleeps when idle, first load can take ~a minute to wake -->
 &nbsp;·&nbsp; **Deep dives:** [the science & history](storyline.md) · [the CNN](cnn.md) · [the metrics](metrics.md)
 
 ## Introduction
@@ -160,8 +160,18 @@ confident (the W and N3 blocks), hesitant through the N1 transitions.*
 
 It reuses the exact training preprocessing (per-recording z-score, 30 s epochs,
 Fpz-Cz @ 100 Hz — the [serve-time invariant](cnn.md#7-serve-time-consistency-the-one-invariant))
-and **never touches Spark** — inference is plain MNE/NumPy/TF. It's a **research demo,
-not a medical device**.
+and **never touches Spark** — inference is plain MNE/NumPy/**onnxruntime**. It's a
+**research demo, not a medical device**.
+
+**Hosted on [Render](https://eeg-sleep-stager.onrender.com/) (free tier).** The
+serve path is **TensorFlow-free**: the CNN is exported to `models/cnn.onnx` and run
+with onnxruntime (~tens of MB vs TF's hundreds), so the demo fits a free 512 MB,
+no-card host. This was the enabling change — Hugging Face now gates free
+`cpu-basic` Gradio Spaces behind **PRO**, and its free ZeroGPU tier is PyTorch-only,
+so a TensorFlow Gradio app has no free HF home. Being a free instance, it **sleeps
+when idle** and takes ~a minute to wake on the first hit. Training still runs on
+TensorFlow (unchanged); only serving switched to ONNX — see
+[cnn-to-onnx.md](cnn-to-onnx.md).
 
 Run it locally (serve-only deps, no Spark):
 
@@ -171,12 +181,15 @@ python scripts/make_sample.py            # build the bundled sample from the epo
 .venv-app/Scripts/python.exe app.py      # serves on http://127.0.0.1:7860
 ```
 
-Or `pip install -e ".[app]" && python app.py` inside the pipeline env. To deploy to
-**Hugging Face Spaces**, follow [docs/huggingface-space.md](docs/huggingface-space.md)
-(Python **3.11**, pinned gradio stack, Git-LFS for the model + sample); a ready-to-paste
-Space landing page is in [docs/space-README.md](docs/space-README.md).
+Or `pip install -e ".[app]" && python app.py` inside the pipeline env. To deploy
+the free hosted version, the repo ships a [`Dockerfile`](Dockerfile) that runs the
+TF-free ONNX serve path (see [cnn-to-onnx.md](cnn-to-onnx.md)); it's live on
+**Render** at **https://eeg-sleep-stager.onrender.com/** (New Web Service → this
+GitHub repo → Docker → Free instance). The older **Hugging Face Spaces** route is
+documented in [docs/huggingface-space.md](docs/huggingface-space.md), but HF now
+requires **PRO** for free CPU Gradio Spaces — Render is the no-card alternative.
 
-<!-- Live demo: https://huggingface.co/spaces/<user>/<space>  (add once deployed) -->
+<!-- Live demo: https://eeg-sleep-stager.onrender.com/ (Render, free tier, ONNX serve path) -->
 
 ## Quickstart
 
@@ -258,9 +271,10 @@ no secrets. Useful flags: `etl --channel "EEG Fpz-Cz" --epoch-sec 30`,
 | EDF I/O | **MNE-Python 1.6** | De-facto standard for reading EDF/EDF+ and hypnogram annotations. Called inside Spark workers. |
 | Signal features | SciPy 1.11 (`scipy.signal.welch`), NumPy | Band powers, spectral entropy, Hjorth parameters. |
 | Intermediate store | **Parquet** (partitioned by subject) | Columnar, Spark-native; keeps raw-epoch arrays + features together. |
-| Deep learning | **TensorFlow 2.15 / Keras** | 1-D CNN is a natural fit for the raw epoch. |
+| Deep learning | **TensorFlow 2.15 / Keras** | 1-D CNN is a natural fit for the raw epoch (**training only**). |
+| Model serving | **ONNX Runtime 1.17** | CNN exported to `cnn.onnx` (opset 13) and served TF-free — ~tens of MB, fits a free 512 MB host. |
 | Baseline / metrics | scikit-learn 1.4 | GradientBoosting baseline; `f1_score(average='macro')`, `cohen_kappa_score`, confusion matrix. |
-| Web demo | **Gradio 4.44** | Browser UI over the trained model; deployable to Hugging Face Spaces. |
+| Web demo | **Gradio 4.44** | Browser UI over the trained model; deployed on **Render** (Docker, free tier) — HF Spaces route also documented. |
 | CLI | **Typer** | Clean subcommands (`ingest`, `etl`, `split`, `train`, `evaluate`). |
 | Config | Pydantic 2 + a single `config.yaml` | Typed, validated run config. |
 | Tests | pytest 8 | Unit tests on the pure feature/label/inference functions with synthetic signals. |
