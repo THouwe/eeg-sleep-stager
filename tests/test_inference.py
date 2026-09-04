@@ -175,9 +175,12 @@ def _models_dir():
 
 
 @pytest.mark.skipif(
-    not (_models_dir() / "cnn.keras").exists(), reason="cnn.keras not trained"
+    not (_models_dir() / "cnn.onnx").exists(), reason="cnn.onnx not built"
 )
 def test_predict_stages_cnn_smoke():
+    # The CNN branch now serves via onnxruntime on cnn.onnx (no TensorFlow), so
+    # this skips on the ONNX artifact rather than the Keras file. Same contract:
+    # (N,) int labels in 0..4 and (N,5) softmax rows summing to 1.
     rng = np.random.default_rng(1)
     z = rng.standard_normal((4, 3000)).astype(np.float32)
     y_pred, proba = inference.predict_stages(z, _models_dir(), model="cnn")
@@ -185,6 +188,37 @@ def test_predict_stages_cnn_smoke():
     assert proba.shape == (4, 5)
     assert set(np.unique(y_pred)).issubset(set(range(5)))
     assert np.allclose(proba.sum(axis=1), 1.0, atol=1e-4)  # softmax rows
+
+
+@pytest.mark.skipif(
+    not (
+        (_models_dir() / "cnn.keras").exists()
+        and (_models_dir() / "cnn.onnx").exists()
+    ),
+    reason="need both cnn.keras and cnn.onnx for the parity check",
+)
+def test_cnn_onnx_matches_keras():
+    """The ONNX serve path reproduces the Keras forward pass.
+
+    This is the equivalence guard for the TF->ONNX slim-down: on the same
+    epochs, the onnxruntime backend (via ``predict_stages``) must give the same
+    argmax labels and near-identical softmax probabilities as the original Keras
+    model. If this passes, swapping backends did not change results.
+    """
+    rng = np.random.default_rng(7)
+    z = rng.standard_normal((16, 3000)).astype(np.float32)
+    models_dir = _models_dir()
+
+    # ONNX path (what the serve code runs).
+    y_onnx, proba_onnx = inference.predict_stages(z, models_dir, model="cnn")
+
+    # Keras path, direct, via the retained TF loader.
+    net = inference._load_cnn(models_dir)
+    proba_keras = np.asarray(net.predict(z[..., None], verbose=0), dtype=float)
+    y_keras = np.argmax(proba_keras, axis=1).astype(int)
+
+    assert np.array_equal(y_onnx, y_keras)  # identical predicted stages
+    assert np.allclose(proba_onnx, proba_keras, atol=1e-4)  # near-identical softmax
 
 
 @pytest.mark.skipif(
