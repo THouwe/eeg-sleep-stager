@@ -308,7 +308,15 @@ def build_demo():
 
 
 def main() -> None:
-    build_demo().launch()
+    # [onnx] disabled: the bare launch() only served localhost:7860, which a
+    # container host can't reach. Bind all interfaces and the injected $PORT
+    # (Koyeb/Render set it) so the same entrypoint works in Docker and locally.
+    # Restore the line below to revert to the local-only launch.
+    # build_demo().launch()
+    build_demo().launch(
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("PORT", 7860)),
+    )
 
 
 if __name__ == "__main__":
