@@ -1,0 +1,40 @@
+# Keep the build context (and image) small: exclude everything the serve path
+# doesn't need. See cnn-to-onnx.md S6.
+
+# Large / regenerable data and outputs
+data/
+reports/
+
+# The Keras model is NOT needed at serve time -- the CNN is served from
+# models/cnn.onnx. Keep cnn.onnx and baseline.joblib (models/ is otherwise
+# copied), drop the ~1 MB Keras file to trim the image.
+models/cnn.keras
+
+# Virtualenvs (host-specific, huge; the image builds its own)
+.venv/
+.venv*/
+venv/
+
+# Python caches / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Spark / OS / VCS noise (not needed to serve)
+spark-warehouse/
+metastore_db/
+derby.log
+.DS_Store
+Thumbs.db
+.git/
+.gitignore
