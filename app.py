@@ -239,6 +239,7 @@ def on_stage(psg_path, hyp_path, model, progress=None):
 
     if not psg_path:
         raise gr.Error("Upload a PSG EDF, or click “Load sample night”.")
+    gr.Info("Working… staging the recording (first run after a nap can take a minute).")
     _check_size(psg_path, "PSG file")
     if hyp_path:
         _check_size(hyp_path, "Hypnogram file")
@@ -257,6 +258,7 @@ def on_sample(model):
         raise gr.Error(
             "Sample not found. Build it with `python scripts/make_sample.py`."
         )
+    gr.Info("Working… staging the sample night (first run after a nap can take a minute).")
     res = inference.stage_sample(CFG, SAMPLE_NPZ, model=model)
     return _render(res)
 
@@ -273,6 +275,19 @@ def build_demo():
             "Automatic AASM sleep staging from a single EEG channel — "
             "a Keras 1-D CNN trained on Sleep-EDF, with subject-wise validation.  \n"
             "**[📂 Source code & write-up on GitHub →](https://github.com/THouwe/eeg-sleep-stager/)**"
+        )
+        # Free-tier hosting sleeps the service when idle; the first load (or the
+        # first action after a pause) spins it back up, which can take ~a minute.
+        # This sets expectations -- the browser waits during the actual spin-up,
+        # so this banner is what greets you once it's awake.
+        gr.HTML(
+            "<div style='padding:10px 14px;border-radius:8px;"
+            "background:#fff7ed;border:1px solid #fdba74;color:#7c2d12;"
+            "font-size:0.95em;line-height:1.4'>"
+            "⏳ <b>Service waking up? Hold on tight!</b> This is a free demo that "
+            "goes to sleep when idle — the first load, or the first action after a "
+            "pause, can take up to a minute to wake up. Thanks for your patience."
+            "</div>"
         )
         with gr.Accordion("About / disclaimer", open=False):
             gr.Markdown(DISCLAIMER)
